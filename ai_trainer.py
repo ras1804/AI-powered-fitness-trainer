@@ -3,240 +3,233 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import streamlit as st
+import time
 
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 
 
-# ================= ANGLE CALCULATION =================
+# ================= ANGLE FUNCTION =================
 
 def calculate_angle(a, b, c):
+
     a = np.array(a)
     b = np.array(b)
     c = np.array(c)
 
-    radians = np.arctan2(c[1] - b[1], c[0] - b[0]) - np.arctan2(a[1] - b[1], a[0] - b[0])
+    radians = np.arctan2(
+        c[1] - b[1],
+        c[0] - b[0]
+    ) - np.arctan2(
+        a[1] - b[1],
+        a[0] - b[0]
+    )
+
     angle = np.abs(radians * 180.0 / np.pi)
 
-    if angle > 180.0:
+    if angle > 180:
         angle = 360 - angle
 
     return angle
 
 
-# ================= MAIN VIDEO PROCESSOR =================
+# ================= MAIN PROCESSOR =================
 
-def process_video(video_path, exercise_type):
+def process_video(video_path, exercise):
 
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():
-        st.error("Could not open video file.")
+        st.error("Cannot open uploaded video.")
         return
 
-    frame_placeholder = st.empty()
-    rep_placeholder = st.empty()
+    stframe = st.empty()
+    rep_text = st.empty()
 
     counter = 0
     stage = None
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     with mp_pose.Pose(
         min_detection_confidence=0.5,
         min_tracking_confidence=0.5
     ) as pose:
 
-        while cap.isOpened():
+        frame_num = 0
 
-            ret, frame = cap.read()
+        while True:
 
-            if not ret:
+            success, frame = cap.read()
+
+            if not success:
                 break
 
-            # Resize for Streamlit performance
-            frame = cv2.resize(frame, (640, 480))
+            frame_num += 1
 
-            # Convert BGR to RGB
-            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            image.flags.writeable = False
-
-            # Process pose
-            results = pose.process(image)
-
-            image.flags.writeable = True
-
-            # Convert back to BGR
-            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            # Skip some frames for Streamlit Cloud performance
+            if frame_num % 2 != 0:
+                continue
 
             try:
-                landmarks = results.pose_landmarks.landmark
 
-                # ================= BICEP CURL =================
-                if exercise_type == "Bicep-Curl":
+                frame = cv2.resize(frame, (640, 480))
 
-                    shoulder = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y
-                    ]
+                # Convert BGR to RGB
+                image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                    elbow = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].y
-                    ]
+                # Process pose
+                results = pose.process(image)
 
-                    wrist = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y
-                    ]
+                if results.pose_landmarks:
 
-                    angle = calculate_angle(shoulder, elbow, wrist)
+                    landmarks = results.pose_landmarks.landmark
 
-                    cv2.putText(
+                    # ================= BICEP CURL =================
+
+                    if exercise == "Bicep-Curl":
+
+                        shoulder = [
+                            landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
+                            landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y
+                        ]
+
+                        elbow = [
+                            landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x,
+                            landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].y
+                        ]
+
+                        wrist = [
+                            landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x,
+                            landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y
+                        ]
+
+                        angle = calculate_angle(
+                            shoulder,
+                            elbow,
+                            wrist
+                        )
+
+                        if angle > 160:
+                            stage = "down"
+
+                        if angle < 40 and stage == "down":
+                            stage = "up"
+                            counter += 1
+
+                    # ================= SQUATS =================
+
+                    elif exercise == "Squats":
+
+                        hip = [
+                            landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x,
+                            landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y
+                        ]
+
+                        knee = [
+                            landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x,
+                            landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y
+                        ]
+
+                        ankle = [
+                            landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x,
+                            landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y
+                        ]
+
+                        angle = calculate_angle(
+                            hip,
+                            knee,
+                            ankle
+                        )
+
+                        if angle > 160:
+                            stage = "up"
+
+                        if angle < 90 and stage == "up":
+                            stage = "down"
+                            counter += 1
+
+                    # ================= PUSHUPS =================
+
+                    elif exercise == "Push-Ups":
+
+                        shoulder = [
+                            landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
+                            landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y
+                        ]
+
+                        elbow = [
+                            landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x,
+                            landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].y
+                        ]
+
+                        wrist = [
+                            landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x,
+                            landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y
+                        ]
+
+                        angle = calculate_angle(
+                            shoulder,
+                            elbow,
+                            wrist
+                        )
+
+                        if angle > 160:
+                            stage = "up"
+
+                        if angle < 90 and stage == "up":
+                            stage = "down"
+                            counter += 1
+
+                    # Draw landmarks
+                    mp_drawing.draw_landmarks(
                         image,
-                        str(int(angle)),
-                        tuple(np.multiply(elbow, [640, 480]).astype(int)),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.8,
-                        (255, 255, 255),
-                        2,
-                        cv2.LINE_AA
+                        results.pose_landmarks,
+                        mp_pose.POSE_CONNECTIONS
                     )
 
-                    if angle > 160:
-                        stage = "down"
-
-                    if angle < 40 and stage == "down":
-                        stage = "up"
-                        counter += 1
-
-                # ================= SQUATS =================
-                elif exercise_type == "Squats":
-
-                    hip = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y
-                    ]
-
-                    knee = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y
-                    ]
-
-                    ankle = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y
-                    ]
-
-                    angle = calculate_angle(hip, knee, ankle)
-
-                    cv2.putText(
-                        image,
-                        str(int(angle)),
-                        tuple(np.multiply(knee, [640, 480]).astype(int)),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.8,
-                        (255, 255, 255),
-                        2,
-                        cv2.LINE_AA
-                    )
-
-                    if angle > 160:
-                        stage = "up"
-
-                    if angle < 90 and stage == "up":
-                        stage = "down"
-                        counter += 1
-
-                # ================= PUSH UPS =================
-                elif exercise_type == "Push-Ups":
-
-                    shoulder = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y
-                    ]
-
-                    elbow = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].y
-                    ]
-
-                    wrist = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y
-                    ]
-
-                    angle = calculate_angle(shoulder, elbow, wrist)
-
-                    cv2.putText(
-                        image,
-                        str(int(angle)),
-                        tuple(np.multiply(elbow, [640, 480]).astype(int)),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.8,
-                        (255, 255, 255),
-                        2,
-                        cv2.LINE_AA
-                    )
-
-                    if angle > 160:
-                        stage = "up"
-
-                    if angle < 90 and stage == "up":
-                        stage = "down"
-                        counter += 1
-
-            except:
-                pass
-
-            # Draw pose landmarks
-            if results.pose_landmarks:
-                mp_drawing.draw_landmarks(
+                # Draw counter box
+                cv2.rectangle(
                     image,
-                    results.pose_landmarks,
-                    mp_pose.POSE_CONNECTIONS,
-                    mp_drawing.DrawingSpec(color=(245, 117, 66), thickness=2, circle_radius=2),
-                    mp_drawing.DrawingSpec(color=(245, 66, 230), thickness=2, circle_radius=2)
+                    (0, 0),
+                    (250, 80),
+                    (0, 0, 0),
+                    -1
                 )
 
-            # Rep counter box
-            cv2.rectangle(image, (0, 0), (250, 80), (0, 0, 0), -1)
+                cv2.putText(
+                    image,
+                    f"REPS: {counter}",
+                    (10, 50),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (0, 255, 0),
+                    2,
+                    cv2.LINE_AA
+                )
 
-            cv2.putText(
-                image,
-                'REPS',
-                (15, 25),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.7,
-                (255, 255, 255),
-                2,
-                cv2.LINE_AA
-            )
+                # Show frame
+                stframe.image(
+                    image,
+                    channels="RGB",
+                    use_container_width=True
+                )
 
-            cv2.putText(
-                image,
-                str(counter),
-                (15, 65),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1.5,
-                (0, 255, 0),
-                3,
-                cv2.LINE_AA
-            )
+                rep_text.markdown(f"## Reps Count: {counter}")
 
-            # Convert image to RGB for Streamlit
-            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                # Small delay helps Streamlit refresh
+                time.sleep(0.03)
 
-            # Display moving video frame
-            frame_placeholder.image(image_rgb, channels="RGB", use_container_width=True)
+            except Exception as e:
+                st.warning(f"Frame skipped due to error: {e}")
+                continue
 
-            # Display reps separately
-            rep_placeholder.markdown(f"## Reps Count: {counter}")
+    cap.release()
 
-        cap.release()
-
-    st.success(f"Processing Complete! Total Reps: {counter}")
+    st.success(f"Finished Processing! Final Reps: {counter}")
 
 
-# ================= EXERCISE FUNCTIONS =================
+# ================= EXERCISES =================
 
 def bicepCurls(video_path):
     process_video(video_path, "Bicep-Curl")
@@ -248,8 +241,6 @@ def squats(video_path):
 
 def pushUps(video_path):
     process_video(video_path, "Push-Ups")
-
-
 
 
 # import cv2
