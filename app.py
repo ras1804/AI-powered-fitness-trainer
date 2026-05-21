@@ -1,3 +1,5 @@
+import os
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
 import ai_trainer as at
 import streamlit as st
 import os
