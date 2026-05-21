@@ -7,6 +7,7 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 load_dotenv()
 
+st.set_page_config(page_title="Q&A Demo")
 
 st.title("Your AI powered fitness assistant")
 st.write("Welcome, lets begin.....")
@@ -58,7 +59,7 @@ with tab2:
 
     ##initialize our streamlit app
 
-    st.set_page_config(page_title="Q&A Demo")
+    
 
     st.header("Gemini LLM Application")
 
