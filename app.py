@@ -1,12 +1,13 @@
 import os
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
-import ai_trainer as at
+
 import streamlit as st
-import os
 import tempfile
-import os
 import google.generativeai as genai
 from dotenv import load_dotenv
+
+import ai_trainer as at
+
 load_dotenv()
 
 st.set_page_config(page_title="Q&A Demo")
