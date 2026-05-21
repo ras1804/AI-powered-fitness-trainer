@@ -4,6 +4,7 @@ import mediapipe as mp
 import numpy as np
 import streamlit as st
 import tempfile
+import time
 
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
@@ -33,7 +34,7 @@ def calculate_angle(a, b, c):
     return angle
 
 
-# ================= PROCESS VIDEO =================
+# ================= MAIN VIDEO PROCESSOR =================
 
 def process_video(video_path, exercise):
 
@@ -43,53 +44,35 @@ def process_video(video_path, exercise):
         st.error("Could not open video.")
         return
 
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-
-    if fps == 0:
-        fps = 20
-
-    # Output video file
-    temp_output = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-    output_path = temp_output.name
-
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-
-    out = cv2.VideoWriter(
-        output_path,
-        fourcc,
-        fps,
-        (width, height)
-    )
+    frame_placeholder = st.empty()
+    counter_placeholder = st.empty()
 
     counter = 0
     stage = None
-
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    current_frame = 0
 
     with mp_pose.Pose(
         min_detection_confidence=0.5,
         min_tracking_confidence=0.5
     ) as pose:
 
-        while True:
+        while cap.isOpened():
 
             ret, frame = cap.read()
 
             if not ret:
                 break
 
-            current_frame += 1
+            # Resize for smoother streaming
+            frame = cv2.resize(frame, (640, 480))
 
+            # Convert color
             image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image.flags.writeable = False
 
+            # Pose detection
             results = pose.process(image)
 
+            image.flags.writeable = True
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
             try:
@@ -98,7 +81,7 @@ def process_video(video_path, exercise):
 
                 # ================= BICEP CURL =================
 
-                if exercise == "Bicep-Curl":
+                if exercise == "curl":
 
                     shoulder = [
                         landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
@@ -121,10 +104,11 @@ def process_video(video_path, exercise):
                         wrist
                     )
 
+                    # Draw angle
                     cv2.putText(
                         image,
                         str(int(angle)),
-                        tuple(np.multiply(elbow, [width, height]).astype(int)),
+                        tuple(np.multiply(elbow, [640, 480]).astype(int)),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         1,
                         (255, 255, 255),
@@ -132,16 +116,17 @@ def process_video(video_path, exercise):
                         cv2.LINE_AA
                     )
 
-                    if angle > 160:
+                    # Better curl logic
+                    if angle > 150:
                         stage = "down"
 
-                    if angle < 40 and stage == "down":
+                    if angle < 45 and stage == "down":
                         stage = "up"
                         counter += 1
 
                 # ================= SQUATS =================
 
-                elif exercise == "Squats":
+                elif exercise == "squat":
 
                     hip = [
                         landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x,
@@ -167,7 +152,7 @@ def process_video(video_path, exercise):
                     cv2.putText(
                         image,
                         str(int(angle)),
-                        tuple(np.multiply(knee, [width, height]).astype(int)),
+                        tuple(np.multiply(knee, [640, 480]).astype(int)),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         1,
                         (255, 255, 255),
@@ -175,7 +160,7 @@ def process_video(video_path, exercise):
                         cv2.LINE_AA
                     )
 
-                    if angle > 160:
+                    if angle > 165:
                         stage = "up"
 
                     if angle < 90 and stage == "up":
@@ -184,7 +169,7 @@ def process_video(video_path, exercise):
 
                 # ================= PUSHUPS =================
 
-                elif exercise == "Push-Ups":
+                elif exercise == "pushup":
 
                     shoulder = [
                         landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
@@ -210,7 +195,7 @@ def process_video(video_path, exercise):
                     cv2.putText(
                         image,
                         str(int(angle)),
-                        tuple(np.multiply(elbow, [width, height]).astype(int)),
+                        tuple(np.multiply(elbow, [640, 480]).astype(int)),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         1,
                         (255, 255, 255),
@@ -225,69 +210,123 @@ def process_video(video_path, exercise):
                         stage = "down"
                         counter += 1
 
-                # Draw landmarks
-                mp_drawing.draw_landmarks(
-                    image,
-                    results.pose_landmarks,
-                    mp_pose.POSE_CONNECTIONS
-                )
-
             except:
                 pass
 
-            # Counter box
-            cv2.rectangle(image, (0, 0), (300, 100), (0, 0, 0), -1)
+            # ================= UI DISPLAY =================
+
+            # Counter Box
+            cv2.rectangle(
+                image,
+                (0, 0),
+                (250, 80),
+                (245, 117, 16),
+                -1
+            )
 
             cv2.putText(
                 image,
-                f"REPS: {counter}",
-                (20, 60),
+                'REPS',
+                (15, 25),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                1.5,
-                (0, 255, 0),
+                0.8,
+                (0, 0, 0),
+                2,
+                cv2.LINE_AA
+            )
+
+            cv2.putText(
+                image,
+                str(counter),
+                (15, 70),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1.8,
+                (255, 255, 255),
                 3,
                 cv2.LINE_AA
             )
 
-            # Write frame
-            out.write(image)
-
-            # Progress update
-            progress = int((current_frame / total_frames) * 100)
-
-            progress_bar.progress(progress)
-
-            status_text.text(
-                f"Processing Video... {progress}%"
+            # Stage
+            cv2.putText(
+                image,
+                'STAGE',
+                (120, 25),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 0, 0),
+                2,
+                cv2.LINE_AA
             )
 
+            cv2.putText(
+                image,
+                str(stage),
+                (120, 70),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1.2,
+                (255, 255, 255),
+                3,
+                cv2.LINE_AA
+            )
+
+            # Draw landmarks
+            if results.pose_landmarks:
+
+                mp_drawing.draw_landmarks(
+                    image,
+                    results.pose_landmarks,
+                    mp_pose.POSE_CONNECTIONS,
+                    mp_drawing.DrawingSpec(
+                        color=(245, 117, 66),
+                        thickness=2,
+                        circle_radius=2
+                    ),
+                    mp_drawing.DrawingSpec(
+                        color=(245, 66, 230),
+                        thickness=2,
+                        circle_radius=2
+                    )
+                )
+
+            # Convert for Streamlit
+            display_image = cv2.cvtColor(
+                image,
+                cv2.COLOR_BGR2RGB
+            )
+
+            # REAL-TIME FRAME UPDATE
+            frame_placeholder.image(
+                display_image,
+                channels="RGB",
+                use_container_width=True
+            )
+
+            # Live counter update
+            counter_placeholder.markdown(
+                f"## Reps Count: {counter}"
+            )
+
+            # IMPORTANT:
+            # Small delay for actual video movement
+            time.sleep(0.03)
+
     cap.release()
-    out.release()
 
-    progress_bar.empty()
-
-    status_text.success(
-        f"Processing Complete! Total Reps: {counter}"
-    )
-
-    # Show processed video
-    st.video(output_path)
-
-    st.success(f"Final Reps Counted: {counter}")
+    st.success(f"Finished! Total Reps: {counter}")
 
 
-# ================= FUNCTIONS =================
+# ================= EXERCISE FUNCTIONS =================
 
 def bicepCurls(video_path):
-    process_video(video_path, "Bicep-Curl")
+    process_video(video_path, "curl")
 
 
 def squats(video_path):
-    process_video(video_path, "Squats")
+    process_video(video_path, "squat")
 
 
 def pushUps(video_path):
-    process_video(video_path, "Push-Ups")
+    process_video(video_path, "pushup")
 
 # import cv2
 # import numpy as np
