@@ -1,3 +1,4 @@
+
 import streamlit as st
 import tempfile
 import os
@@ -9,16 +10,16 @@ import ai_trainer as at
 
 load_dotenv()
 
-# ---------------- PAGE CONFIG ----------------
+st.set_page_config(page_title="AI Fitness Trainer", layout="wide")
 
-st.set_page_config(page_title="AI Fitness Trainer")
-
-st.title("🏋 Your AI Powered Fitness Assistant")
+st.title("Your AI Powered Fitness Assistant")
 st.write("Welcome, let's begin...")
 
-# ---------------- TABS ----------------
+
+# ================= TABS =================
 
 tab1, tab2 = st.tabs(["Fitness Trainer", "Chatbot"])
+
 
 # ================= FITNESS TRAINER =================
 
@@ -34,7 +35,7 @@ with tab1:
         type=["mp4", "avi", "mov"]
     )
 
-    if st.button("Let's Go!!!"):
+    if st.button("Letss goo!!!"):
 
         if workout == "select":
             st.warning("Please select a workout.")
@@ -51,38 +52,16 @@ with tab1:
 
         st.success("Video uploaded successfully!")
 
-        # Streamlit placeholders
-        frame_placeholder = st.empty()
-        rep_placeholder = st.empty()
-
-        st.info("Processing video...")
-
-        # Call workout functions
+        # Start exercise processing
         if workout == 'Bicep-Curl':
-
-            at.bicepCurls(
-                video_path,
-                frame_placeholder,
-                rep_placeholder
-            )
+            at.bicepCurls(video_path)
 
         elif workout == 'Squats':
-
-            at.squats(
-                video_path,
-                frame_placeholder,
-                rep_placeholder
-            )
+            at.squats(video_path)
 
         elif workout == 'Push-Ups':
+            at.pushUps(video_path)
 
-            at.pushUps(
-                video_path,
-                frame_placeholder,
-                rep_placeholder
-            )
-
-        st.success("✅ Workout analysis completed!")
 
 # ================= CHATBOT =================
 
@@ -105,26 +84,18 @@ with tab2:
 
         if st.button("Ask") and user_input:
 
-            try:
+            response = model.generate_content(user_input)
 
-                response = model.generate_content(user_input)
-
-                st.session_state.chat_history.append(
-                    ("You", user_input)
-                )
-
-                st.session_state.chat_history.append(
-                    ("Bot", response.text)
-                )
-
-            except Exception as e:
-                st.error(f"Error: {e}")
+            st.session_state.chat_history.append(("You", user_input))
+            st.session_state.chat_history.append(("Bot", response.text))
 
         for role, text in st.session_state.chat_history:
             st.write(f"**{role}:** {text}")
 
     else:
         st.error("GOOGLE_API_KEY not found in environment variables.")
+
+
 # import os
 # os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
