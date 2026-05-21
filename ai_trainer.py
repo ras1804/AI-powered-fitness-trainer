@@ -81,137 +81,76 @@ def process_video(video_path, exercise):
 
                 # ================= BICEP CURL =================
 
-                if exercise == "curl":
+               # ================= BICEP CURL =================
 
-                    shoulder = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y
-                    ]
+if exercise == "curl":
 
-                    elbow = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].y
-                    ]
+    # RIGHT ARM
+    right_shoulder = [
+        landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
+        landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y
+    ]
 
-                    wrist = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y
-                    ]
+    right_elbow = [
+        landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x,
+        landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].y
+    ]
 
-                    angle = calculate_angle(
-                        shoulder,
-                        elbow,
-                        wrist
-                    )
+    right_wrist = [
+        landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x,
+        landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y
+    ]
 
-                    # Draw angle
-                    cv2.putText(
-                        image,
-                        str(int(angle)),
-                        tuple(np.multiply(elbow, [640, 480]).astype(int)),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1,
-                        (255, 255, 255),
-                        2,
-                        cv2.LINE_AA
-                    )
+    right_angle = calculate_angle(
+        right_shoulder,
+        right_elbow,
+        right_wrist
+    )
 
-                    # Better curl logic
-                    if angle > 150:
-                        stage = "down"
+    # LEFT ARM
+    left_shoulder = [
+        landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x,
+        landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y
+    ]
 
-                    if angle < 45 and stage == "down":
-                        stage = "up"
-                        counter += 1
+    left_elbow = [
+        landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].x,
+        landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].y
+    ]
 
-                # ================= SQUATS =================
+    left_wrist = [
+        landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].x,
+        landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y
+    ]
 
-                elif exercise == "squat":
+    left_angle = calculate_angle(
+        left_shoulder,
+        left_elbow,
+        left_wrist
+    )
 
-                    hip = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y
-                    ]
+    # Use the arm with smaller angle
+    angle = min(right_angle, left_angle)
 
-                    knee = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y
-                    ]
+    # Display angle
+    cv2.putText(
+        image,
+        str(int(angle)),
+        (50, 150),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1,
+        (255, 255, 255),
+        2,
+        cv2.LINE_AA
+    )
 
-                    ankle = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y
-                    ]
+    # MUCH BETTER CURL THRESHOLDS
+    if angle > 140:
+        stage = "down"
 
-                    angle = calculate_angle(
-                        hip,
-                        knee,
-                        ankle
-                    )
-
-                    cv2.putText(
-                        image,
-                        str(int(angle)),
-                        tuple(np.multiply(knee, [640, 480]).astype(int)),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1,
-                        (255, 255, 255),
-                        2,
-                        cv2.LINE_AA
-                    )
-
-                    if angle > 165:
-                        stage = "up"
-
-                    if angle < 90 and stage == "up":
-                        stage = "down"
-                        counter += 1
-
-                # ================= PUSHUPS =================
-
-                elif exercise == "pushup":
-
-                    shoulder = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y
-                    ]
-
-                    elbow = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].y
-                    ]
-
-                    wrist = [
-                        landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x,
-                        landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y
-                    ]
-
-                    angle = calculate_angle(
-                        shoulder,
-                        elbow,
-                        wrist
-                    )
-
-                    cv2.putText(
-                        image,
-                        str(int(angle)),
-                        tuple(np.multiply(elbow, [640, 480]).astype(int)),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1,
-                        (255, 255, 255),
-                        2,
-                        cv2.LINE_AA
-                    )
-
-                    if angle > 160:
-                        stage = "up"
-
-                    if angle < 90 and stage == "up":
-                        stage = "down"
-                        counter += 1
-
-            except:
-                pass
+    if angle < 75 and stage == "down":
+        stage = "up"
+        counter += 1
 
             # ================= UI DISPLAY =================
 
