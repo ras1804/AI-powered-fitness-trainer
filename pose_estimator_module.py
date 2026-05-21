@@ -22,9 +22,12 @@ class poseDetector():
         self.mpDraw = mp.solutions.drawing_utils
         self.mpPose = mp.solutions.pose
 
+        # IMPORTANT:
+        # model_complexity=1 prevents MediaPipe from trying
+        # to download the lite model in Streamlit Cloud
         self.pose = self.mpPose.Pose(
             static_image_mode=self.mode,
-            model_complexity=0,
+            model_complexity=1,
             smooth_landmarks=self.smooth,
             enable_segmentation=False,
             min_detection_confidence=self.detectionCon,
@@ -36,12 +39,13 @@ class poseDetector():
 
     def findPose(self, img, draw=True):
 
-        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if img is None:
+            return img
 
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.results = self.pose.process(imgRGB)
 
         if self.results.pose_landmarks and draw:
-
             self.mpDraw.draw_landmarks(
                 img,
                 self.results.pose_landmarks,
@@ -60,7 +64,8 @@ class poseDetector():
 
                 h, w, c = img.shape
 
-                cx, cy = int(lm.x * w), int(lm.y * h)
+                cx = int(lm.x * w)
+                cy = int(lm.y * h)
 
                 self.lmList.append([id, cx, cy])
 
@@ -80,9 +85,9 @@ class poseDetector():
         if len(self.lmList) == 0:
             return 0
 
-        _, x1, y1 = self.lmList[p1]
-        _, x2, y2 = self.lmList[p2]
-        _, x3, y3 = self.lmList[p3]
+        x1, y1 = self.lmList[p1][1:]
+        x2, y2 = self.lmList[p2][1:]
+        x3, y3 = self.lmList[p3][1:]
 
         angle = math.degrees(
             math.atan2(y3 - y2, x3 - x2) -
@@ -92,24 +97,26 @@ class poseDetector():
         if angle < 0:
             angle += 360
 
-        if angle > 180:
-            angle = 360 - angle
-
         if draw:
 
             cv2.line(img, (x1, y1), (x2, y2), (0, 255, 0), 4)
             cv2.line(img, (x2, y2), (x3, y3), (0, 255, 0), 4)
 
             cv2.circle(img, (x1, y1), 10, (255, 0, 0), cv2.FILLED)
+            cv2.circle(img, (x1, y1), 15, (255, 0, 0), 2)
+
             cv2.circle(img, (x2, y2), 10, (255, 0, 0), cv2.FILLED)
+            cv2.circle(img, (x2, y2), 15, (255, 0, 0), 2)
+
             cv2.circle(img, (x3, y3), 10, (255, 0, 0), cv2.FILLED)
+            cv2.circle(img, (x3, y3), 15, (255, 0, 0), 2)
 
             cv2.putText(
                 img,
                 str(int(angle)),
                 (x2 - 20, y2 + 50),
                 cv2.FONT_HERSHEY_COMPLEX,
-                1,
+                2,
                 (255, 0, 0),
                 2
             )
